@@ -1,7 +1,22 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'dart:io';
+import 'dart:typed_data';
+//import 'package:flutter/foundation.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider<UdpSocketService>(create: (_) => udpSocketService),
+        ChangeNotifierProvider<UdpDataProvider>(
+          create: (context) => UdpDataProvider(udpSocketService),
+        ),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -13,113 +28,203 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage_v2(title: 'Home Page Stateless'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class StreamServiceTest {
+  final _controller = StreamController<int>.broadcast();
+  Stream<int> get stream => _controller.stream;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  StreamServiceTest() {
+    _initializeit();
+  }
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+  void _initializeit() async {
+    bool _hook = true;
+    int i = 0;
 
-  final String title;
+    while (_hook) {
+      await Future.delayed(Duration(milliseconds: 1000));
+      i++;
+      _controller.add(i);
+    }
+  }
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  void dispose() {
+    _controller?.close();
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class UdpDataProvider extends ChangeNotifier {
+  final StreamServiceTest _udpSocketService;
+  int _latestData = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  UdpDataProvider(this._udpSocketService) {
+    _udpSocketService.stream.listen((data) {
+      _latestData = data;
+      notifyListeners();
     });
   }
 
+  int get latestData => _latestData;
+}
+
+class UdpSocketService {
+  final _controller = StreamController<List<int>>.broadcast();
+  RawDatagramSocket? _socket;
+
+  UdpSocketService() {
+    //_initializeSocket();
+  }
+
+  Stream<List<int>> get stream => _controller.stream;
+
+//  void _initializeSocket() async {
+//    _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 12345);
+//    if (_socket != null) {
+//      _socket?.listen((RawSocketEvent event) {
+//        if (event == RawSocketEvent.read) {
+//          Datagram datagram = _socket.receive();
+//          if (datagram != null) {
+//            _controller.add(datagram.data);
+//          }
+//        }
+//      });
+//    }
+//  }
+
+  void dispose() {
+    _socket?.close();
+    _controller?.close();
+  }
+}
+
+class Counterprovider extends ChangeNotifier {
+  int _counter = 0;
+
+  int get counter {
+    return _counter;
+  }
+
+  set counter(value) {
+    _counter = value;
+  }
+
+  void incrementCounter() {
+    _counter++;
+    notifyListeners();
+  }
+
+  void decrementCounter() {
+    _counter--;
+    notifyListeners();
+  }
+
+  Stream<int?> Receiver() async* {
+    // var random = Random(2);
+    int port = 7800;
+    bool _hook = true;
+
+    InternetAddress ip = InternetAddress('192.168.0.23');
+    String? ntpstring = '';
+    final clientSocket = await RawDatagramSocket.bind(
+      InternetAddress.anyIPv4,
+      port,
+    );
+
+    clientSocket.broadcastEnabled = true;
+
+    while (_hook) {
+      await Future.delayed(Duration(milliseconds: 500));
+      _counter++;
+      notifyListeners();
+      yield this._counter;
+      continue;
+
+      final ntpQuery = Uint8List(48);
+      ntpQuery[0] = 0x23; // See RFC 5905 7.3
+
+      clientSocket.listen((event) {
+        switch (event) {
+          case RawSocketEvent.read:
+            final datagram = clientSocket.receive();
+
+            if (datagram?.data != null) {
+              String message =
+                  String.fromCharCodes(datagram?.data ?? Uint8List(0));
+              ntpstring = message;
+//InternetAddress senderAddress = datagram.address';
+              int senderPort = datagram?.port ?? 0;
+
+              //print(
+              //    'Received UDP message from SenderAddress:$senderPort: $message');
+            } else
+              ntpstring = 'Null';
+
+            clientSocket.close();
+            break;
+          case RawSocketEvent.write:
+            /* if (clientSocket.send(ntpQuery, serverAddress, 123) > 0) {
+                clientSocket.writeEventsEnabled = false;
+              } */
+            break;
+          case RawSocketEvent.closed:
+            break;
+          default:
+            throw "Unexpected event $event";
+        }
+      });
+
+      yield ntpstring;
+    }
+  }
+}
+
+class MyHomePage_v2 extends StatelessWidget {
+  final String title;
+
+  const MyHomePage_v2({super.key, required this.title});
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final data = context.watch<Counterprovider>();
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             const Text(
               'You have pushed the button this many times:',
             ),
             Text(
-              '$_counter',
+              'Counter is ${data.counter.toString()}',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            ElevatedButton(
+                onPressed: () {
+                  data.decrementCounter();
+                },
+                child: Text('---')),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: () {
+          data.incrementCounter();
+        },
         tooltip: 'Increment',
         child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
+      // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
