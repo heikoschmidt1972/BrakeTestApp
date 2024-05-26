@@ -3,14 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:convert';
 //import 'package:flutter/foundation.dart';
 
 void main() {
-  runApp(ChangeNotifierProvider<Counterprovider>(
-    create: (context) => Counterprovider(),
-    child: MyApp(),
-  ));
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider<UdpSocketService>(create: (_) => udpSocketService()),
+        ChangeNotifierProvider<UdpDataProvider>(
+          create: (context) => UdpDataProvider(udpSocketService),
+        ),
+      ],
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -30,98 +36,83 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class Counterprovider extends ChangeNotifier {
-  int _counter = 0;
+class StreamServiceTest {
   final _controller = StreamController<int>.broadcast();
   Stream<int> get stream => _controller.stream;
-  late RawDatagramSocket _socket;
 
-  Counterprovider() {}
+  StreamServiceTest() {
+    _initializeit();
+  }
+
+  void _initializeit() async {
+    bool _hook = true;
+    int i = 0;
+
+    while (_hook) {
+      await Future.delayed(Duration(milliseconds: 1000));
+      i++;
+      _controller.add(i);
+    }
+  }
+
+  void dispose() {
+    _controller?.close();
+  }
+}
+
+class UdpDataProvider extends ChangeNotifier {
+  final StreamServiceTest _udpSocketService;
+  int _latestData = 0;
+
+  UdpDataProvider(this._udpSocketService) {
+    _udpSocketService.stream.listen((data) {
+      _latestData = data;
+      notifyListeners();
+    });
+  }
+
+  int get latestData => _latestData;
+}
+
+class UdpSocketService {
+  final _controller = StreamController<List<int>>.broadcast();
+  RawDatagramSocket? _socket;
+
+  UdpSocketService() {
+    //_initializeSocket();
+  }
+
+  Stream<List<int>> get stream => _controller.stream;
+
+//  void _initializeSocket() async {
+//    _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 12345);
+//    if (_socket != null) {
+//      _socket?.listen((RawSocketEvent event) {
+//        if (event == RawSocketEvent.read) {
+//          Datagram datagram = _socket.receive();
+//          if (datagram != null) {
+//            _controller.add(datagram.data);
+//          }
+//        }
+//      });
+//    }
+//  }
+
+  void dispose() {
+    _socket?.close();
+    _controller?.close();
+  }
+}
+
+class Counterprovider extends ChangeNotifier {
+  int _counter = 0;
 
   int get counter {
     return _counter;
   }
 
-//  void initSocket() async {
-//    clientSocket = await RawDatagramSocket.bind(
-//      InternetAddress.anyIPv4,
-//      this.port,
-//    );
-//
-//    clientSocket.broadcastEnabled = true;
-//  }
-  void _initializeSocket() async {
-    _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 7800);
-    _counter = -1000;
-    notifyListeners();
-    int myval = 0;
-
-    try {
-      _socket.listen((event) {
-        switch (event) {
-          case RawSocketEvent.read:
-            final datagram = _socket.receive();
-
-            if (datagram?.data != null) {
-              String message =
-                  String.fromCharCodes(datagram?.data ?? Uint8List(0));
-              if (message.length > 0) {
-                // hier muss dann eigentlich die Decodierung des JSON-Strings erfolgen
-                var response = json.decode(message);
-                var speed = response['data']['speed'];
-                //var dist = response['data']['brakedistance'];
-                //var acc = response['data']['acceleration'];
-                // try {
-                //   myval = int.parse(speed);
-                //
-                //   print(myval);
-                //
-                //   //notifyListeners();
-                // } on Exception catch (e) {
-                // print(e)
-                //_counter = -2000;
-                //   notifyListeners();
-                // }
-                _counter++; // = int.parse(speed);
-                notifyListeners();
-              }
-
-              //InternetAddress senderAddress = datagram.address';
-              //int senderPort = datagram?.port ?? 0;
-
-              //print(
-              //    'Received UDP message from SenderAddress:$senderPort: $message');
-            }
-            //_socket.close();
-            break;
-          case RawSocketEvent.write:
-            /* if (clientSocket.send(ntpQuery, serverAddress, 123) > 0) {
-              clientSocket.writeEventsEnabled = false;
-            } */
-            break;
-          case RawSocketEvent.closed:
-            break;
-          default:
-            throw "Unexpected event $event";
-        }
-      });
-    } on Exception catch (e) {
-      print(e.toString());
-      // TODO
-    }
-  }
-
-  void _OnSocketData() {}
-
   set counter(value) {
     _counter = value;
-  }
-
-  void StartTimer() async {
-    Timer.periodic(Duration(milliseconds: 100), (timer) {
-      _counter++;
-      notifyListeners();
-    });
   }
 
   void incrementCounter() {
@@ -134,7 +125,6 @@ class Counterprovider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /*
   Stream<int?> Receiver() async* {
     // var random = Random(2);
     int port = 7800;
@@ -193,7 +183,6 @@ class Counterprovider extends ChangeNotifier {
       yield ntpstring;
     }
   }
-*/
 }
 
 class MyHomePage_v2 extends StatelessWidget {
@@ -203,12 +192,7 @@ class MyHomePage_v2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Daten von den Providern
-    //
     final data = context.watch<Counterprovider>();
-    //
-    //
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -230,23 +214,6 @@ class MyHomePage_v2 extends StatelessWidget {
                   data.decrementCounter();
                 },
                 child: Text('---')),
-            ElevatedButton(
-                onPressed: () {
-                  data.StartTimer();
-                },
-                child: Text('Starte Timer')),
-            //================================
-            ElevatedButton(
-                onPressed: () {
-                  data._initializeSocket();
-                },
-                child: Text('Starte Socket')),
-            //==================================================
-            ElevatedButton(
-                onPressed: () {
-                  data.StartTimer();
-                },
-                child: Text('Stoppe Socket')),
           ],
         ),
       ),
