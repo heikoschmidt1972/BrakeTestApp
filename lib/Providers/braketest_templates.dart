@@ -98,3 +98,19 @@ class BrakeTestTemplateItem_Provider {
 
   //
 }
+
+class BrakeTestTemplate_Provider extends ChangeNotifier {
+  List<BrakeTestTemplateItem_Provider> _list = [];
+
+  List<BrakeTestTemplateItem_Provider> get ListOf => _list;
+
+  void reorderTemplateItems(int oldindex, int newindex) {
+    // dd
+    if (oldindex < newindex) newindex--;
+
+    final templateItem = _list.removeAt(oldindex);
+    _list.insert(newindex, templateItem);
+
+    notifyListeners();
+  }
+}
