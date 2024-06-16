@@ -35,7 +35,7 @@ dependencies:
   path_provider: ^2.1.2
   input_quantity: ^2.3.2
   quantity_input: ^1.0.2
-  provider:
+  provider: ^6.1.2
   
   flutter:
     sdk: flutter
