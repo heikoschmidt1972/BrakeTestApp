@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'package:brake_test_app/Providers/braketest_templates.dart';
 import 'package:brake_test_app/Speedometer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,8 @@ void main() {
           create: (context) => Counterprovider()),
       ChangeNotifierProvider<MeasurementStateProvider>(
           create: (context) => MeasurementStateProvider()),
+      ChangeNotifierProvider<BrakeTestTemplate_Provider>(
+          create: (context) => BrakeTestTemplate_Provider()),
     ],
     child: MyApp(),
   ));
@@ -34,12 +37,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Brake-Test-App',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage_v2(title: 'Home Page Stateless'),
+      home: const Template_Page_v1(title: 'Home Page Stateless'),
     );
   }
 }
@@ -233,6 +236,101 @@ class Counterprovider extends ChangeNotifier {
     }
   }
 */
+}
+
+class Template_Page_v1 extends StatelessWidget {
+  final String title;
+
+  const Template_Page_v1({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    // Daten von den Providern
+    //
+    final data = context.watch<Counterprovider>();
+    final msp = context.watch<MeasurementStateProvider>();
+    BrakeTestTemplate_Provider bttp =
+        Provider.of<BrakeTestTemplate_Provider>(context);
+    //
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(title),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Speedometer(
+                value: data.speed, width: 180, height: 180, maxspeed: 50),
+            SizedBox(height: 12),
+            const Text(
+              'You have pushed the button this many times:',
+            ),
+
+            //==================================================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ElevatedButton(
+                    onPressed: () {
+                      data._socket.close();
+                    },
+                    child: Text('Stoppe Socket')),
+                //==================================================
+                ElevatedButton(
+                    onPressed: () {
+                      msp.ToggleBrake();
+                    },
+                    child: Text('Toggle Brake')),
+              ],
+            ),
+            Container(
+              width: 360,
+              height: 350,
+              decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryFixed,
+                  borderRadius: BorderRadius.circular(4)),
+              child: ReorderableListView(
+                padding: const EdgeInsets.all(10),
+                children: [
+                  for (final tile in bttp.ListOf)
+                    Padding(
+                      key: ValueKey(tile),
+                      padding: const EdgeInsets.all(8.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(3),
+                          color: Colors.grey[200],
+                        ),
+                        child: ListTile(
+                          title: Text(
+                            tile.toJson().toString(),
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+                onReorder: (oldIndex, newIndex) {
+                  bttp.reorderTemplateItems(oldIndex, newIndex);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          data.incrementCounter();
+        },
+        tooltip: 'Increment',
+        child: const Icon(Icons.add),
+      ),
+      // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
 }
 
 class MyHomePage_v2 extends StatelessWidget {
