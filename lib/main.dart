@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:ffi';
+import 'package:brake_test_app/Speedometer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
@@ -7,6 +9,18 @@ import 'dart:convert';
 //import 'package:flutter/foundation.dart';
 
 void main() {
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider<Counterprovider>(
+          create: (context) => Counterprovider()),
+      ChangeNotifierProvider<MeasurementStateProvider>(
+          create: (context) => MeasurementStateProvider()),
+    ],
+    child: MyApp(),
+  ));
+}
+
+void main_old_01() {
   runApp(ChangeNotifierProvider<Counterprovider>(
     create: (context) => Counterprovider(),
     child: MyApp(),
@@ -30,8 +44,31 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class MeasurementStateProvider extends ChangeNotifier {
+  double _speed = 0.0;
+  String _sspeed = '';
+  double _distance = 0.0;
+  bool _brake_active = false;
+  bool get brake_active => _brake_active;
+  set brake_active(value) {
+    _brake_active = value;
+  }
+
+  void ToggleBrake() {
+    if (_brake_active == false)
+      _brake_active = true;
+    else
+      _brake_active = false;
+
+    notifyListeners();
+  }
+}
+
 class Counterprovider extends ChangeNotifier {
   int _counter = 0;
+  String _sspeed = '';
+  double speed = 0.0;
+
   final _controller = StreamController<int>.broadcast();
   Stream<int> get stream => _controller.stream;
   late RawDatagramSocket _socket;
@@ -40,6 +77,19 @@ class Counterprovider extends ChangeNotifier {
 
   int get counter {
     return _counter;
+  }
+
+  double ConvertSpeedToDouble(String ss) {
+    double s = 0.0;
+    String sss = ss.replaceAll(".", ",");
+    try {
+      s = double.parse(ss);
+    } on Exception catch (e) {
+      // TODO
+      s = 0.0;
+    }
+
+    return s;
   }
 
 //  void initSocket() async {
@@ -54,7 +104,6 @@ class Counterprovider extends ChangeNotifier {
     _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 7800);
     _counter = -1000;
     notifyListeners();
-    int myval = 0;
 
     try {
       _socket.listen((event) {
@@ -69,19 +118,9 @@ class Counterprovider extends ChangeNotifier {
                 // hier muss dann eigentlich die Decodierung des JSON-Strings erfolgen
                 var response = json.decode(message);
                 var speed = response['data']['speed'];
-                //var dist = response['data']['brakedistance'];
-                //var acc = response['data']['acceleration'];
-                // try {
-                //   myval = int.parse(speed);
-                //
-                //   print(myval);
-                //
-                //   //notifyListeners();
-                // } on Exception catch (e) {
-                // print(e)
-                //_counter = -2000;
-                //   notifyListeners();
-                // }
+                _sspeed = speed.toString();
+                speed = ConvertSpeedToDouble(_sspeed);
+
                 _counter++; // = int.parse(speed);
                 notifyListeners();
               }
@@ -206,6 +245,7 @@ class MyHomePage_v2 extends StatelessWidget {
     // Daten von den Providern
     //
     final data = context.watch<Counterprovider>();
+    final msp = context.watch<MeasurementStateProvider>();
     //
     //
 
@@ -218,12 +258,24 @@ class MyHomePage_v2 extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            Speedometer(
+                value: data.speed, width: 180, height: 180, maxspeed: 50),
+            SizedBox(height: 12),
             const Text(
               'You have pushed the button this many times:',
             ),
             Text(
-              'Counter is ${data.counter.toString()}',
+              'Counter is',
               style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            Text(
+              data.speed.toStringAsFixed(2),
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            //Text( msp.brake_active ?? 'Aktiv' : 'passiv'),
+            Checkbox(
+              value: msp.brake_active,
+              onChanged: (value) {},
             ),
             ElevatedButton(
                 onPressed: () {
@@ -244,9 +296,15 @@ class MyHomePage_v2 extends StatelessWidget {
             //==================================================
             ElevatedButton(
                 onPressed: () {
-                  data.StartTimer();
+                  data._socket.close();
                 },
                 child: Text('Stoppe Socket')),
+            //==================================================
+            ElevatedButton(
+                onPressed: () {
+                  msp.ToggleBrake();
+                },
+                child: Text('Toggle Brake')),
           ],
         ),
       ),
