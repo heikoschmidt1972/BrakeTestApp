@@ -52,12 +52,12 @@ class BrakeTestTemplateItem_Provider {
   // Konstruktoren ==========================================================
   BrakeTestTemplateItem_Provider() {}
   BrakeTestTemplateItem_Provider.from(this._type_of_brake,
-      {dutName = "",
-      speed_min = 20,
-      speed_max = 25,
-      s_max = 20,
-      a_min = 1.1,
-      load_state = 'leer'}) {
+      {String dutName = "",
+      double speed_min = 20,
+      double speed_max = 25,
+      double s_max = 20,
+      double a_min = 1.1,
+      String load_state = 'leer'}) {
     this._dutName = dutName;
     this._speed_min = speed_min;
     this._speed_max = speed_max;
@@ -112,5 +112,68 @@ class BrakeTestTemplate_Provider extends ChangeNotifier {
     _list.insert(newindex, templateItem);
 
     notifyListeners();
+  }
+
+  BrakeTestTemplate_Provider() {
+    _list.add(BrakeTestTemplateItem_Provider.from("SIFA",
+        dutName: "5006-1",
+        speed_min: 21,
+        speed_max: 26,
+        load_state: "leer",
+        s_max: 19.90,
+        a_min: 1.234));
+    _list.add(BrakeTestTemplateItem_Provider.from("SIFA",
+        dutName: "5006-8",
+        speed_min: 21,
+        speed_max: 26,
+        load_state: "50kg",
+        s_max: 19.90,
+        a_min: 1.234));
+    _list.add(BrakeTestTemplateItem_Provider.from("SIFA",
+        dutName: "5006-1",
+        speed_min: 21,
+        speed_max: 26,
+        load_state: "1250kg",
+        s_max: 19.90,
+        a_min: 1.234));
+    _list.add(BrakeTestTemplateItem_Provider.from("Gefahrenbremsung",
+        dutName: "5006-1",
+        speed_min: 21,
+        speed_max: 26,
+        load_state: "leer",
+        s_max: 19.90,
+        a_min: 1.234));
+  }
+}
+
+// Widget zum Anzeigen =======================================================
+class TemplateList extends StatelessWidget {
+  const TemplateList({super.key});
+  void reorder(int oldindex, int newindex) {}
+  @override
+  Widget build(BuildContext context) {
+    // Fahrzeuge fzg_provider = Provider.of<Fahrzeuge>(context, listen: false);
+    BrakeTestTemplate_Provider bttp =
+        Provider.of<BrakeTestTemplate_Provider>(context);
+
+    return ReorderableListView(
+      padding: const EdgeInsets.all(10),
+      children: [
+        for (final tile in bttp.ListOf)
+          Padding(
+            key: ValueKey(tile),
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              color: Colors.grey[200],
+              child: ListTile(
+                title: Text(tile.toString()),
+              ),
+            ),
+          ),
+      ],
+      onReorder: (oldIndex, newIndex) {
+        bttp.reorderTemplateItems(oldIndex, newIndex);
+      },
+    );
   }
 }
