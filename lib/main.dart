@@ -295,7 +295,7 @@ class Template_Page_v1 extends StatelessWidget {
               child: ReorderableListView(
                 padding: const EdgeInsets.all(10),
                 children: [
-                  for (final tile in bttp.ListOf)
+                  for (final BrakeTestTemplateItem_Provider tile in bttp.ListOf)
                     Padding(
                       key: ValueKey(tile),
                       padding: const EdgeInsets.all(8.0),
@@ -306,9 +306,12 @@ class Template_Page_v1 extends StatelessWidget {
                         ),
                         child: ListTile(
                           title: Text(
-                            tile.toJson().toString(),
-                            style: TextStyle(fontSize: 12),
+                            tile.type_of_Brake,
+                            style: TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.bold),
                           ),
+                          subtitle: Text(tile.loadState,
+                              style: TextStyle(fontSize: 12)),
                         ),
                       ),
                     ),

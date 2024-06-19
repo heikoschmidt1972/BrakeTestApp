@@ -16,6 +16,15 @@ class BrakeTestTemplateItem_Provider {
   double _a_min = 0.0;
 
   double asd = 0;
+// Getter/Setter ===========================================================
+  String get type_of_Brake {
+    return _type_of_brake;
+  }
+
+  String get loadState {
+    return _load_state;
+  }
+
   // Load/Save ==============================================================
   Future<void> save() async {
     final myMap = toJson();
@@ -65,8 +74,6 @@ class BrakeTestTemplateItem_Provider {
     this._a_min = a_min;
     this._load_state = load_state;
   }
-
-  // Getter/Setter ===========================================================
 
   // MAP/JSON =================================================================
   Map<String, dynamic> toJson() {
@@ -140,7 +147,21 @@ class BrakeTestTemplate_Provider extends ChangeNotifier {
         dutName: "5006-1",
         speed_min: 21,
         speed_max: 26,
-        load_state: "leer",
+        load_state: "1500kg",
+        s_max: 19.90,
+        a_min: 1.234));
+    _list.add(BrakeTestTemplateItem_Provider.from("Ausfall einer Bremse",
+        dutName: "5006-1",
+        speed_min: 21,
+        speed_max: 26,
+        load_state: "1800kg",
+        s_max: 19.90,
+        a_min: 1.234));
+    _list.add(BrakeTestTemplateItem_Provider.from("Fahrsperrenbremse",
+        dutName: "5006-1",
+        speed_min: 21,
+        speed_max: 26,
+        load_state: "2000kg",
         s_max: 19.90,
         a_min: 1.234));
   }
